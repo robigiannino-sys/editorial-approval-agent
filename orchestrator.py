@@ -46,23 +46,27 @@ def _agent():
 # ─── Brief parsing ──────────────────────────────────────────────────────────
 
 
-def extract_mu_content(notion_blocks_text: str) -> dict:
+def extract_mu_content(notion_blocks_text: str, fallback_title: str = "") -> dict:
     """
     Dato il body markdown del brief Notion (concatenato), estrae:
-      - title: prima opzione tra "Titolo proposto (opzione 1)"
+      - title: prima opzione tra "Titolo proposto (opzione 1)" o fallback Contenuto Notion
       - slug: derivato dal title
       - body_html: corpo dell'Angolo MU formattato come HTML Gutenberg
       - focus_keyword: prima keyword DE menzionata
     """
-    # Title — opzione 1
+    # Title — opzione 1 nel body
     title_match = re.search(
         r'\*\*Titolo proposto \(opzione 1\)\*\*\s*[:|]\s*"?([^"\n]+)"?',
         notion_blocks_text,
     )
     if not title_match:
-        # Fallback: cerca "Titolo:" o "Titolo proposto opzione 1:"
         title_match = re.search(r'Titolo proposto[^\n]*opzione 1[^\n]*[:|]\s*"?([^"\n]+)"?', notion_blocks_text)
-    title = title_match.group(1).strip().strip('"').strip("«»").strip() if title_match else "Untitled"
+    if title_match:
+        title = title_match.group(1).strip().strip('"').strip("«»").strip()
+    else:
+        # Fallback al Contenuto Notion: "[NEWS] Topic — Tipo MU/WoM: Titolo"
+        clean = re.sub(r"^\[NEWS\][^—]*—\s*[^:]+:\s*", "", fallback_title or "").strip()
+        title = clean if clean else (fallback_title or "Untitled")
 
     # Slug (sanitize)
     slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:80]
@@ -253,7 +257,7 @@ async def today_data() -> dict:
 
         # Body
         body_text = await fetch_notion_page_body(client, page_id)
-        extracted = extract_mu_content(body_text)
+        extracted = extract_mu_content(body_text, fallback_title=titolo)
 
         return {
             "ok": True,
@@ -314,7 +318,7 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
 
         # Body brief
         body_text = await fetch_notion_page_body(client, notion_id)
-        extracted = extract_mu_content(body_text)
+        extracted = extract_mu_content(body_text, fallback_title=titolo)
 
         # 1) Genera visual con prompt arricchito da concetti del body
         subject_phrase = extracted["title"][:120]
@@ -352,11 +356,42 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             raise HTTPException(500, f"Visual generation failed: {e}")
 
         # 2) Crea draft pagina IT
+        # Hero image (full-width Gutenberg image block)
+        hero_block = (
+            f'<!-- wp:image {{"id":{visual["media_id"]},"sizeSlug":"large","linkDestination":"none","align":"wide"}} -->\n'
+            f'<figure class="wp-block-image alignwide size-large">'
+            f'<img src="{visual["image_url"]}" alt="{extracted["title"]}" class="wp-image-{visual["media_id"]}"/>'
+            f'</figure>\n<!-- /wp:image -->'
+        )
+        # Heading H1 (sotto l'hero)
+        sub_block = (
+            f'<!-- wp:heading {{"level":1}} -->\n'
+            f'<h1 class="wp-block-heading">{extracted["title"]}</h1>\n'
+            f'<!-- /wp:heading -->'
+        )
+        # CTA box editoriale al termine
+        cta_block = (
+            '<!-- wp:group {"className":"osservatorio-cta","layout":{"type":"constrained"}} -->\n'
+            '<div class="wp-block-group osservatorio-cta">\n'
+            '<!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Continua l\'esplorazione</h3><!-- /wp:heading -->\n'
+            '<!-- wp:paragraph --><p>Approfondisci nei dipartimenti collegati di Merino University.</p><!-- /wp:paragraph -->\n'
+            '<!-- wp:buttons -->\n'
+            '<div class="wp-block-buttons">\n'
+            '<!-- wp:button {"className":"is-style-fill"} -->\n'
+            '<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/osservatorio/">Tutti gli articoli Osservatorio</a></div>\n'
+            '<!-- /wp:button -->\n'
+            '<!-- wp:button {"className":"is-style-outline"} -->\n'
+            '<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/">Esplora Merino University</a></div>\n'
+            '<!-- /wp:button -->\n'
+            '</div>\n<!-- /wp:buttons -->\n'
+            '</div>\n<!-- /wp:group -->'
+        )
+        full_body = "\n\n".join([hero_block, sub_block, extracted["body_html"], cta_block])
         wp_payload = {
             "lang": "it",
             "title": extracted["title"],
             "slug": extracted["slug"],
-            "content": extracted["body_html"],
+            "content": full_body,
             "featured_media": visual["media_id"],
             "seo_title": extracted["title"][:60],
             "seo_description": (extracted["title"] + ". " + extracted["body_html"][:300])[:155],
