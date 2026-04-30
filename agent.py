@@ -513,6 +513,36 @@ async def root() -> dict:
     }
 
 
+@app.get("/debug-claude")
+async def debug_claude() -> dict:
+    """Test diretto API Claude — dice se la key/model funzionano."""
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not key:
+        return {"ok": False, "error": "ANTHROPIC_API_KEY env var empty"}
+    try:
+        from anthropic import AsyncAnthropic
+    except ImportError as e:
+        return {"ok": False, "error": f"import failed: {e}"}
+    try:
+        client = AsyncAnthropic(api_key=key)
+        resp = await client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=50,
+            messages=[{"role": "user", "content": "Rispondi solo: OK funzionante."}],
+        )
+        text = "".join(b.text for b in resp.content if hasattr(b, "text"))
+        return {
+            "ok": True,
+            "key_prefix": key[:10],
+            "model": "claude-sonnet-4-6",
+            "response": text.strip()[:100],
+            "input_tokens": resp.usage.input_tokens,
+            "output_tokens": resp.usage.output_tokens,
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300], "error_type": type(e).__name__}
+
+
 @app.post("/run-now/{job_id}")
 async def run_now(job_id: str) -> dict:
     """Trigger manuale di un job. Utile per debug e primo test."""
