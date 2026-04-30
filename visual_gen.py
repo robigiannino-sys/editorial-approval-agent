@@ -186,15 +186,18 @@ async def generate_and_upload_visual(
 # Phase 2: caricare references/visual-prompt-templates.json dal news scanner.
 
 STYLE_GUIDE_MU = (
-    "editorial infographic illustration, minimalist data visualization, technical and scientific "
+    "abstract editorial composition, minimalist conceptual artwork, technical and scientific "
     "aesthetic for Merino University Osservatorio. Subject: {subject_phrase}. "
     "Visual elements should evoke and reference: {key_concepts}. "
-    "Style: clean geometric shapes, abstract diagrams, layered information, subtle texture grain, "
-    "elegant typography hints (no readable text), editorial magazine quality. "
+    "Style: clean geometric shapes, abstract symbolic forms, organic textile textures, "
+    "layered transparent planes, subtle film grain, editorial magazine quality. "
     "Color palette: deep navy #1F3A5F, warm beige #E8DCC4, soft terracotta #C9876B, "
     "charcoal grey #3A3A3A, off-white #F5EFE6. "
-    "No photographic realism, no people, no logos, no readable text. "
-    "Reminiscent of The Economist, Bloomberg Businessweek, MIT Technology Review covers."
+    "ABSOLUTELY NO TEXT, no letters, no numbers, no words, no labels, no captions, "
+    "no typography, no fonts, no writing of any kind. "
+    "No photographic realism, no people, no logos, no readable text whatsoever. "
+    "Pure visual abstraction — text and titles will be added later as page layout. "
+    "Inspired by abstract editorial covers and minimalist art compositions."
 )
 
 STYLE_GUIDE_WOM = (
@@ -202,11 +205,17 @@ STYLE_GUIDE_WOM = (
     "Italian elegance, soft depth of field, 35mm film grain. Editorial photograph for World of Merino. "
     "Subject: {subject_phrase}. Visual references: {key_concepts}. "
     "Color palette: warm beige, deep navy blue, stone grey, cream white, soft terracotta. "
-    "Contemplative newsroom voice. No visible logos, no readable text, no obvious models. "
+    "Contemplative newsroom voice. "
+    "ABSOLUTELY NO TEXT, no letters, no numbers, no words, no labels, no captions, "
+    "no typography, no signage, no writing of any kind. "
+    "No visible logos, no obvious models. "
+    "Pure photographic image — titles and copy will be added as page layout overlay. "
     "Reminiscent of Monocle, The Gentlewoman, Cereal magazine editorial photography."
 )
 
 NEGATIVE_PROMPT = (
+    "text, letters, words, numbers, typography, captions, labels, watermarks, signage, writing, "
+    "lorem ipsum, fake text, gibberish writing, character glyphs, fonts, alphabetic shapes, "
     "neon colors, artificial lighting, studio backdrop, bold text overlay, clipart, cartoon style, "
     "stock photo generic poses, bright saturated colors, logos, brand names, watermarks"
 )
