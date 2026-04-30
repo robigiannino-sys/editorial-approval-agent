@@ -28,6 +28,8 @@ from pydantic import BaseModel
 
 # import locali — agent.py li ri-esporta o si fanno lazy
 from visual_gen import generate_and_upload_visual, compose_prompt
+from claude_writer import write_article_from_brief
+from knowledge_base import find_companion as kb_find_companion
 
 log = logging.getLogger("orchestrator")
 
@@ -355,6 +357,7 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
         dominio = a.get_prop(entry, "Dominio") or ""
         tema = a.get_prop(entry, "Tema") or "general"
         shelf = a.get_prop(entry, "Shelf Life") or "warm"
+        cluster = a.get_prop(entry, "Cluster") or ""
 
         if dominio != "merinouniversity.com":
             raise HTTPException(
@@ -414,13 +417,37 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             f'<h1 class="wp-block-heading">{extracted["title"]}</h1>\n'
             f'<!-- /wp:heading -->'
         )
-        # CTA box editoriale al termine — collegamento al gemello WoM
-        wom_companion = await find_wom_companion(client, tema)
+        # Riscrivi il body con Claude (il brief grezzo non è un articolo)
+        try:
+            article_html = await write_article_from_brief(
+                brief_text=body_text,
+                title=extracted["title"],
+                domain=dominio,
+                topic=tema,
+                key_concepts=key_concepts,
+            )
+            log.info(f"Claude article generated: {len(article_html)} chars")
+        except Exception as e:
+            log.error(f"Claude article generation failed: {e}, falling back to brief body")
+            article_html = extracted["body_html"]
+        # CTA box editoriale al termine — collegamento WoM tramite knowledge base
+        target = "worldofmerino.com" if dominio == "merinouniversity.com" else "merinouniversity.com"
+        kb_match = await kb_find_companion(
+            client=client,
+            source_topic=tema,
+            source_title=extracted["title"],
+            target_domain=target,
+            source_cluster=cluster if 'cluster' in dir() else "",
+        )
+        wom_companion = (
+            {"title": kb_match.title, "url": kb_match.url} if kb_match else None
+        )
+        target_name = "World of Merino" if target == "worldofmerino.com" else "Merino University"
         if wom_companion:
-            cta_heading = "Leggi anche su World of Merino"
+            cta_heading = f"Leggi anche su {target_name}"
             cta_intro = (
-                f"Lo stesso fatto raccontato dal magazine lifestyle Albeni 1905, "
-                f"con un registro complementare a questo articolo Osservatorio."
+                f"Lo stesso fatto raccontato dal magazine gemello dell'ecosistema Albeni 1905, "
+                f"con un registro complementare a questo articolo."
             )
             cta_url = wom_companion["url"]
             cta_label_primary = wom_companion["title"][:80]
@@ -444,7 +471,7 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             '</div><!-- /wp:buttons -->\n'
             '</div>\n<!-- /wp:group -->'
         )
-        full_body = "\n\n".join([hero_block, sub_block, extracted["body_html"], cta_block])
+        full_body = "\n\n".join([hero_block, sub_block, article_html, cta_block])
         wp_payload = {
             "lang": "it",
             "title": extracted["title"],
