@@ -190,11 +190,13 @@ async def today_data() -> dict:
     a = _agent()
     async with httpx.AsyncClient() as client:
         entries = await a.notion_query_da_fare(client)
+        # Phase 1: filtra solo MU (WoM in Phase 2 con backport endpoint)
+        entries = [e for e in entries if a.get_prop(e, "Dominio") == "merinouniversity.com"]
         if not entries:
             return {
                 "ok": True,
                 "empty": True,
-                "message": "Nessun brief in attesa di approvazione.",
+                "message": "Nessun brief MU in attesa di approvazione (Phase 1 — WoM in Phase 2).",
             }
         # Prendiamo il più recente
         entry = entries[0]
