@@ -372,12 +372,12 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
         subject_phrase = extracted["title"][:120]
         key_concepts = extract_key_concepts(body_text)
         log.info(f"Visual prompt key_concepts: {key_concepts!r}")
-        # Per MU usiamo "infographic illustration", per cui il subject_phrase è
-        # un concept descrittivo invece che un still life
+        # MU: studio still-life o macro materico legato al tema dell'articolo
         if dominio == "merinouniversity.com":
             subject_descriptor = (
-                f"abstract editorial infographic illustrating '{subject_phrase}', "
-                f"minimalist data visualization with conceptual diagram elements"
+                f"a tactile material photograph related to '{subject_phrase}' — "
+                f"showing natural wool fibers, textile samples, or laboratory objects "
+                f"that directly evoke the article's specific subject matter"
             )
         else:
             subject_descriptor = (
@@ -404,10 +404,10 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             raise HTTPException(500, f"Visual generation failed: {e}")
 
         # 2) Crea draft pagina IT
-        # Hero image (full-width Gutenberg image block)
+        # Hero image — allineamento default (dentro al container, non bleed laterale)
         hero_block = (
-            f'<!-- wp:image {{"id":{visual["media_id"]},"sizeSlug":"large","linkDestination":"none","align":"wide"}} -->\n'
-            f'<figure class="wp-block-image alignwide size-large">'
+            f'<!-- wp:image {{"id":{visual["media_id"]},"sizeSlug":"large","linkDestination":"none"}} -->\n'
+            f'<figure class="wp-block-image size-large">'
             f'<img src="{visual["image_url"]}" alt="{extracted["title"]}" class="wp-image-{visual["media_id"]}"/>'
             f'</figure>\n<!-- /wp:image -->'
         )
@@ -444,18 +444,16 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
         )
         target_name = "World of Merino" if target == "worldofmerino.com" else "Merino University"
         if wom_companion:
-            cta_heading = f"Leggi anche su {target_name}"
+            cta_heading = f"Continua su {target_name}"
             cta_intro = (
-                f"Lo stesso fatto raccontato dal magazine gemello dell'ecosistema Albeni 1905, "
-                f"con un registro complementare a questo articolo."
+                f"Un approfondimento dello stesso tema, con un altro registro."
             )
             cta_url = wom_companion["url"]
             cta_label_primary = wom_companion["title"][:80]
         else:
-            cta_heading = "Esplora World of Merino"
+            cta_heading = f"Vai a {target_name}"
             cta_intro = (
-                "Il magazine lifestyle dell'ecosistema Albeni 1905 — "
-                "stessi fatti, registro narrativo complementare al taglio scientifico dell'Osservatorio."
+                f"Esplora il magazine."
             )
             cta_url = "https://worldofmerino.com/"
             cta_label_primary = "Vai a World of Merino"
@@ -471,7 +469,52 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             '</div><!-- /wp:buttons -->\n'
             '</div>\n<!-- /wp:group -->'
         )
-        full_body = "\n\n".join([hero_block, sub_block, article_html, cta_block])
+        # Banner approval — visibile finché la pagina è in draft, JS chiama Railway
+        agent_base = os.environ.get("AGENT_PUBLIC_URL", "https://editorial-approval-agent-production.up.railway.app")
+        approval_banner = (
+            '<!-- wp:html -->\n'
+            '<div id="albeni-approval-banner" data-notion-id="' + notion_id + '" '
+            'style="background:#FEF6E4;border:1px solid #E0C38A;border-radius:6px;'
+            'padding:14px 18px;margin-bottom:24px;font-family:system-ui,sans-serif;'
+            'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">\n'
+            '<div style="font-size:14px;color:#5C4A1F;line-height:1.4;">'
+            '<strong>Bozza in attesa di approvazione</strong> · '
+            'Verifica testo, immagine e CTA, poi pubblica o cancella la draft.</div>\n'
+            '<div style="display:flex;gap:8px;">\n'
+            '<button id="albeni-approve-btn" style="background:#1F3A5F;color:#fff;border:none;'
+            'padding:8px 16px;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;">'
+            'Approva e pubblica</button>\n'
+            '<button id="albeni-delete-btn" style="background:transparent;color:#7A2E2E;'
+            'border:1px solid #C9876B;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;">'
+            'Cancella draft</button>\n'
+            '</div></div>\n'
+            '<script>\n'
+            '(function(){\n'
+            '  var banner=document.getElementById("albeni-approval-banner");\n'
+            '  if(!banner) return;\n'
+            '  var nid=banner.dataset.notionId;\n'
+            '  var base="' + agent_base + '";\n'
+            '  function setMsg(t,c){banner.innerHTML=\'<div style="font-size:14px;color:\'+(c||"#5C4A1F")+\';">\'+t+\'</div>\';}\n'
+            '  document.getElementById("albeni-approve-btn").onclick=function(){\n'
+            '    setMsg("Pubblicazione in corso…");\n'
+            '    fetch(base+"/promote/"+nid,{method:"POST"}).then(function(r){return r.json();}).then(function(j){\n'
+            '      if(j.ok){setMsg("Articolo pubblicato — la pagina sarà ricaricata","#2D5A2D");setTimeout(function(){location.reload();},1200);}\n'
+            '      else{setMsg("Errore: "+(j.error||"sconosciuto"),"#7A2E2E");}\n'
+            '    }).catch(function(e){setMsg("Errore di rete: "+e,"#7A2E2E");});\n'
+            '  };\n'
+            '  document.getElementById("albeni-delete-btn").onclick=function(){\n'
+            '    if(!confirm("Cancellare definitivamente la draft?")) return;\n'
+            '    setMsg("Cancellazione in corso…");\n'
+            '    fetch(base+"/delete/"+nid,{method:"POST"}).then(function(r){return r.json();}).then(function(j){\n'
+            '      if(j.ok){setMsg("Draft cancellata","#7A2E2E");setTimeout(function(){location.href="/osservatorio/";},1200);}\n'
+            '      else{setMsg("Errore: "+(j.error||"sconosciuto"),"#7A2E2E");}\n'
+            '    }).catch(function(e){setMsg("Errore di rete: "+e,"#7A2E2E");});\n'
+            '  };\n'
+            '})();\n'
+            '</script>\n'
+            '<!-- /wp:html -->'
+        )
+        full_body = "\n\n".join([approval_banner, hero_block, sub_block, article_html, cta_block])
         wp_payload = {
             "lang": "it",
             "title": extracted["title"],

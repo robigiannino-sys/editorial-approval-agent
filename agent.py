@@ -483,6 +483,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — il banner approval su merinouniversity.com / worldofmerino.com chiama via fetch
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://merinouniversity.com",
+        "https://worldofmerino.com",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
 # Mount orchestrator + frontend routers (mobile-first 2-tap flow)
 from orchestrator import router as orch_router  # noqa: E402
 from frontend import router as fe_router  # noqa: E402

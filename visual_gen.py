@@ -186,18 +186,22 @@ async def generate_and_upload_visual(
 # Phase 2: caricare references/visual-prompt-templates.json dal news scanner.
 
 STYLE_GUIDE_MU = (
-    "abstract editorial composition, minimalist conceptual artwork, technical and scientific "
-    "aesthetic for Merino University Osservatorio. Subject: {subject_phrase}. "
-    "Visual elements should evoke and reference: {key_concepts}. "
-    "Style: clean geometric shapes, abstract symbolic forms, organic textile textures, "
-    "layered transparent planes, subtle film grain, editorial magazine quality. "
-    "Color palette: deep navy #1F3A5F, warm beige #E8DCC4, soft terracotta #C9876B, "
-    "charcoal grey #3A3A3A, off-white #F5EFE6. "
+    "Editorial scientific photograph for Merino University Osservatorio — a peer-reviewed-style "
+    "wool/textile sustainability journal. Subject: {subject_phrase}. "
+    "MUST visually reference and incorporate these specific concepts: {key_concepts}. "
+    "Photographic style: macro detail of natural materials (raw merino wool fibers, woven textile "
+    "structure, fiber cross-sections, undyed wool tops, water droplets on wool surface, "
+    "natural lanolin sheen), or studio still-life of related objects (test tubes, lab petri dishes "
+    "with wool samples, thermal imaging cameras, technical instruments), "
+    "shot on medium format, 50mm lens, soft directional natural light, shallow depth of field. "
+    "The image MUST feel grounded in the textile/wool/sustainability domain — not abstract, "
+    "not urban, not generic landscape. Show the actual MATTER discussed in the article. "
+    "Color palette: warm beige #E8DCC4, deep navy #1F3A5F, soft terracotta #C9876B, "
+    "charcoal grey #3A3A3A, off-white #F5EFE6, raw wool cream tones. "
     "ABSOLUTELY NO TEXT, no letters, no numbers, no words, no labels, no captions, "
-    "no typography, no fonts, no writing of any kind. "
-    "No photographic realism, no people, no logos, no readable text whatsoever. "
-    "Pure visual abstraction — text and titles will be added later as page layout. "
-    "Inspired by abstract editorial covers and minimalist art compositions."
+    "no typography, no fonts, no writing, no diagrams with annotations, no infographics. "
+    "No people, no faces, no logos. The image should feel like Heritage Sustainability Review, "
+    "Selvedge Magazine, or Hole & Corner — a tactile material photography, not graphic design."
 )
 
 STYLE_GUIDE_WOM = (
