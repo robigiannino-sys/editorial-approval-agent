@@ -493,11 +493,19 @@ app.include_router(orch_router)
 
 @app.get("/")
 async def root() -> dict:
+    # Check Anthropic SDK + key state (no leak)
+    try:
+        import anthropic  # noqa: F401
+        anthropic_sdk_installed = True
+    except ImportError:
+        anthropic_sdk_installed = False
     return {
         "service": "editorial-approval-agent",
         "version": AGENT_VERSION,
         "conservative": CONSERVATIVE_MODE,
         "scheduler_running": scheduler.running,
+        "anthropic_sdk_installed": anthropic_sdk_installed,
+        "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY", "")),
         "next_runs": {
             j.id: j.next_run_time.isoformat() if j.next_run_time else None
             for j in scheduler.get_jobs()
