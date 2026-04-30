@@ -226,6 +226,51 @@ def _block_to_text(blk: dict) -> str:
     return text
 
 
+
+async def find_wom_companion(client, tema: str) -> dict | None:
+    """
+    Cerca in Notion un'entry pubblicata WoM con lo stesso tema (gemello editoriale).
+    Ritorna {"title": str, "url": str} o None.
+    """
+    if not tema:
+        return None
+    a = _agent()
+    body = {
+        "filter": {
+            "and": [
+                {"property": "Stato", "select": {"equals": "Pubblicato"}},
+                {"property": "Dominio", "select": {"equals": "worldofmerino.com"}},
+                {"property": "Tema", "rich_text": {"equals": tema}},
+            ]
+        },
+        "sorts": [{"timestamp": "created_time", "direction": "descending"}],
+        "page_size": 1,
+    }
+    try:
+        r = await client.post(
+            f"{a.NOTION_API}/databases/{a.NOTION_DB_ID}/query",
+            headers=a.NOTION_HEADERS,
+            json=body,
+            timeout=20,
+        )
+        r.raise_for_status()
+        results = r.json().get("results", [])
+        if not results:
+            return None
+        entry = results[0]
+        title = a.get_prop(entry, "Contenuto") or ""
+        # Cerca URL nel campo Note (potrebbe contenere il permalink dopo publish)
+        note = a.get_prop(entry, "Note") or ""
+        url_match = re.search(r"https?://worldofmerino\.com/[\w\-/]+", note)
+        permalink = url_match.group(0) if url_match else "https://worldofmerino.com/"
+        # Pulisci titolo dal pattern "[NEWS] Topic — Tipo WoM: Titolo"
+        clean = re.sub(r"^\[NEWS\][^—]*—\s*[^:]+:\s*", "", title).strip() or title
+        return {"title": clean, "url": permalink}
+    except Exception as e:
+        log.warning(f"find_wom_companion failed: {e}")
+        return None
+
+
 # ─── Endpoint: GET /today ───────────────────────────────────────────────────
 
 
@@ -369,21 +414,34 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
             f'<h1 class="wp-block-heading">{extracted["title"]}</h1>\n'
             f'<!-- /wp:heading -->'
         )
-        # CTA box editoriale al termine
+        # CTA box editoriale al termine — collegamento al gemello WoM
+        wom_companion = await find_wom_companion(client, tema)
+        if wom_companion:
+            cta_heading = "Leggi anche su World of Merino"
+            cta_intro = (
+                f"Lo stesso fatto raccontato dal magazine lifestyle Albeni 1905, "
+                f"con un registro complementare a questo articolo Osservatorio."
+            )
+            cta_url = wom_companion["url"]
+            cta_label_primary = wom_companion["title"][:80]
+        else:
+            cta_heading = "Esplora World of Merino"
+            cta_intro = (
+                "Il magazine lifestyle dell'ecosistema Albeni 1905 — "
+                "stessi fatti, registro narrativo complementare al taglio scientifico dell'Osservatorio."
+            )
+            cta_url = "https://worldofmerino.com/"
+            cta_label_primary = "Vai a World of Merino"
+
         cta_block = (
             '<!-- wp:group {"className":"osservatorio-cta","layout":{"type":"constrained"}} -->\n'
             '<div class="wp-block-group osservatorio-cta">\n'
-            '<!-- wp:heading {"level":3} --><h3 class="wp-block-heading">Continua l\'esplorazione</h3><!-- /wp:heading -->\n'
-            '<!-- wp:paragraph --><p>Approfondisci nei dipartimenti collegati di Merino University.</p><!-- /wp:paragraph -->\n'
-            '<!-- wp:buttons -->\n'
-            '<div class="wp-block-buttons">\n'
-            '<!-- wp:button {"className":"is-style-fill"} -->\n'
-            '<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="/osservatorio/">Tutti gli articoli Osservatorio</a></div>\n'
-            '<!-- /wp:button -->\n'
-            '<!-- wp:button {"className":"is-style-outline"} -->\n'
-            '<div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/">Esplora Merino University</a></div>\n'
-            '<!-- /wp:button -->\n'
-            '</div>\n<!-- /wp:buttons -->\n'
+            f'<!-- wp:heading {{"level":3}} --><h3 class="wp-block-heading">{cta_heading}</h3><!-- /wp:heading -->\n'
+            f'<!-- wp:paragraph --><p>{cta_intro}</p><!-- /wp:paragraph -->\n'
+            '<!-- wp:buttons --><div class="wp-block-buttons">\n'
+            f'<!-- wp:button {{"className":"is-style-fill"}} --><div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="{cta_url}">{cta_label_primary}</a></div><!-- /wp:button -->\n'
+            '<!-- wp:button {"className":"is-style-outline"} --><div class="wp-block-button is-style-outline"><a class="wp-block-button__link wp-element-button" href="/osservatorio/">Tutti gli articoli Osservatorio</a></div><!-- /wp:button -->\n'
+            '</div><!-- /wp:buttons -->\n'
             '</div>\n<!-- /wp:group -->'
         )
         full_body = "\n\n".join([hero_block, sub_block, extracted["body_html"], cta_block])
