@@ -88,7 +88,7 @@ async def generate_image_bytes(
         config=types.GenerateImagesConfig(
             number_of_images=1,
             aspect_ratio=aspect_ratio,
-            safety_filter_level="BLOCK_LOW_AND_ABOVE",
+            safety_filter_level="BLOCK_MEDIUM_AND_ABOVE",
         ),
     )
 
@@ -186,22 +186,19 @@ async def generate_and_upload_visual(
 # Phase 2: caricare references/visual-prompt-templates.json dal news scanner.
 
 STYLE_GUIDE_MU = (
-    "Editorial scientific photograph for Merino University Osservatorio — a peer-reviewed-style "
-    "wool/textile sustainability journal. Subject: {subject_phrase}. "
-    "MUST visually reference and incorporate these specific concepts: {key_concepts}. "
-    "Photographic style: macro detail of natural materials (raw merino wool fibers, woven textile "
-    "structure, fiber cross-sections, undyed wool tops, water droplets on wool surface, "
-    "natural lanolin sheen), or studio still-life of related objects (test tubes, lab petri dishes "
-    "with wool samples, thermal imaging cameras, technical instruments), "
-    "shot on medium format, 50mm lens, soft directional natural light, shallow depth of field. "
-    "The image MUST feel grounded in the textile/wool/sustainability domain — not abstract, "
-    "not urban, not generic landscape. Show the actual MATTER discussed in the article. "
-    "Color palette: warm beige #E8DCC4, deep navy #1F3A5F, soft terracotta #C9876B, "
-    "charcoal grey #3A3A3A, off-white #F5EFE6, raw wool cream tones. "
+    "Editorial photograph for a wool & textile sustainability publication. "
+    "Subject: {subject_phrase}. "
+    "Visual references: {key_concepts}. "
+    "Style: macro photograph of natural materials — raw merino wool fibers, woven textile "
+    "structure, undyed wool yarn, water droplets on wool surface, natural fiber close-up. "
+    "Shot on medium format, 50mm lens, soft directional natural light, shallow depth of field, "
+    "minimal natural background. "
+    "The image MUST be grounded in textile/wool material — not abstract, not urban, not landscape. "
+    "Color palette: warm beige, deep navy, soft terracotta, charcoal grey, raw wool cream. "
     "ABSOLUTELY NO TEXT, no letters, no numbers, no words, no labels, no captions, "
-    "no typography, no fonts, no writing, no diagrams with annotations, no infographics. "
-    "No people, no faces, no logos. The image should feel like Heritage Sustainability Review, "
-    "Selvedge Magazine, or Hole & Corner — a tactile material photography, not graphic design."
+    "no typography, no fonts, no writing, no diagrams. "
+    "No people, no logos. Reminiscent of Selvedge Magazine, Hole & Corner — "
+    "tactile material photography."
 )
 
 STYLE_GUIDE_WOM = (
