@@ -186,17 +186,24 @@ async def generate_and_upload_visual(
 # Phase 2: caricare references/visual-prompt-templates.json dal news scanner.
 
 STYLE_GUIDE_MU = (
-    "editorial documentary photography, neutral lighting, technical and scientific aesthetic, "
-    "macro detail, shallow depth of field, 50mm. Editorial photograph for Merino University: "
-    "{subject_phrase}. Color palette: deep navy, charcoal grey, warm beige, muted terracotta. "
-    "Documentary editorial style, authentic, no models, no logos, no text overlay."
+    "editorial infographic illustration, minimalist data visualization, technical and scientific "
+    "aesthetic for Merino University Osservatorio. Subject: {subject_phrase}. "
+    "Visual elements should evoke and reference: {key_concepts}. "
+    "Style: clean geometric shapes, abstract diagrams, layered information, subtle texture grain, "
+    "elegant typography hints (no readable text), editorial magazine quality. "
+    "Color palette: deep navy #1F3A5F, warm beige #E8DCC4, soft terracotta #C9876B, "
+    "charcoal grey #3A3A3A, off-white #F5EFE6. "
+    "No photographic realism, no people, no logos, no readable text. "
+    "Reminiscent of The Economist, Bloomberg Businessweek, MIT Technology Review covers."
 )
 
 STYLE_GUIDE_WOM = (
     "editorial fashion photography, warm natural light, muted earth tones, quiet luxury aesthetic, "
-    "Italian elegance, no visible logos, soft depth of field, 35mm film grain. Editorial photograph "
-    "for World of Merino: {subject_phrase}. Color palette: warm beige, deep navy blue, stone grey, "
-    "cream white, soft terracotta. Editorial context: contemplative newsroom voice."
+    "Italian elegance, soft depth of field, 35mm film grain. Editorial photograph for World of Merino. "
+    "Subject: {subject_phrase}. Visual references: {key_concepts}. "
+    "Color palette: warm beige, deep navy blue, stone grey, cream white, soft terracotta. "
+    "Contemplative newsroom voice. No visible logos, no readable text, no obvious models. "
+    "Reminiscent of Monocle, The Gentlewoman, Cereal magazine editorial photography."
 )
 
 NEGATIVE_PROMPT = (
@@ -205,10 +212,21 @@ NEGATIVE_PROMPT = (
 )
 
 
-def compose_prompt(subject_phrase: str, destination: str, extra: str = "") -> str:
-    """Compone un prompt per Imagen 4 a partire da un soggetto e destinazione."""
+def compose_prompt(
+    subject_phrase: str,
+    destination: str,
+    key_concepts: str = "",
+    extra: str = "",
+) -> str:
+    """Compone un prompt per Imagen 4 a partire da un soggetto e destinazione.
+    key_concepts: stringa con 3-5 concetti chiave estratti dal body del brief
+                  (date, numeri, soggetti specifici, location, ecc.)
+    """
     style = STYLE_GUIDE_MU if destination.upper() == "MU" else STYLE_GUIDE_WOM
-    base = style.format(subject_phrase=subject_phrase)
+    base = style.format(
+        subject_phrase=subject_phrase,
+        key_concepts=key_concepts or "abstract conceptual elements",
+    )
     if extra:
         base = f"{base}. {extra}"
     return f"{base}\n\nNegative: {NEGATIVE_PROMPT}"

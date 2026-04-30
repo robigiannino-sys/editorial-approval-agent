@@ -94,6 +94,47 @@ def extract_mu_content(notion_blocks_text: str) -> dict:
     }
 
 
+
+def extract_key_concepts(brief_text: str, max_items: int = 6) -> str:
+    """
+    Estrae concetti chiave dal body del brief Notion per arricchire il prompt
+    visuale: numeri/percentuali/date, sostantivi tecnici ricorrenti, location.
+    """
+    concepts = []
+    # 1. Date in vari formati
+    for m in re.finditer(r"\b(\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}|\d{4}-\d{2}-\d{2}|mid-?20\d{2})\b", brief_text, flags=re.I):
+        concepts.append(m.group(1))
+        if len(concepts) >= 2:
+            break
+    # 2. Numeri rilevanti (percentuali, costi, micron, ecc.)
+    for m in re.finditer(r"\b(\d+[.,]?\d*\s*(?:%|micron|μm|km|kg|°C|GB|euro|c/kg|g/m²|YoY|TWh))\b", brief_text):
+        concepts.append(m.group(1))
+        if len(concepts) >= 4:
+            break
+    # 3. Acronimi tecnici (DPP, ESPR, IWTO, ecc.)
+    acronyms = set(re.findall(r"\b([A-Z]{3,6})\b", brief_text))
+    # Filtra acronimi rilevanti del dominio merino/sostenibilità
+    relevant = {"DPP","ESPR","IWTO","REACH","PFAS","LCA","UID","QR","NFC","RFID","EMI","AWEX","ZQ","UE","UV"}
+    for ac in acronyms:
+        if ac in relevant:
+            concepts.append(ac)
+            if len([c for c in concepts if c.isupper()]) >= 3:
+                break
+    # 4. Location notable
+    for m in re.finditer(r"\b(Biella|Milano|Bruxelles|Amsterdam|New Zealand|Australia|Italia|Europa|EU)\b", brief_text):
+        concepts.append(m.group(1))
+        if len(concepts) >= max_items:
+            break
+    # Dedupe + limit
+    seen = set()
+    unique = []
+    for c in concepts:
+        cl = c.lower().strip()
+        if cl not in seen:
+            seen.add(cl)
+            unique.append(c.strip())
+    return ", ".join(unique[:max_items]) if unique else ""
+
 def _markdown_to_gutenberg(md: str) -> str:
     """Converter molto basico markdown → blocchi Gutenberg minimi."""
     out = []
@@ -275,11 +316,25 @@ async def approve_brief(notion_id: str) -> ApproveResponse:
         body_text = await fetch_notion_page_body(client, notion_id)
         extracted = extract_mu_content(body_text)
 
-        # 1) Genera visual
+        # 1) Genera visual con prompt arricchito da concetti del body
         subject_phrase = extracted["title"][:120]
+        key_concepts = extract_key_concepts(body_text)
+        log.info(f"Visual prompt key_concepts: {key_concepts!r}")
+        # Per MU usiamo "infographic illustration", per cui il subject_phrase è
+        # un concept descrittivo invece che un still life
+        if dominio == "merinouniversity.com":
+            subject_descriptor = (
+                f"abstract editorial infographic illustrating '{subject_phrase}', "
+                f"minimalist data visualization with conceptual diagram elements"
+            )
+        else:
+            subject_descriptor = (
+                f"a still life evoking '{subject_phrase}', subtle and contemplative"
+            )
         prompt = compose_prompt(
-            subject_phrase=f"a still life evoking '{subject_phrase}', subtle and contemplative",
-            destination="MU",
+            subject_phrase=subject_descriptor,
+            destination="MU" if dominio == "merinouniversity.com" else "WoM",
+            key_concepts=key_concepts,
             extra=f"Topic: {tema}.",
         )
         try:
