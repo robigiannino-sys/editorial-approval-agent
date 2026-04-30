@@ -75,6 +75,7 @@ ROBERTO_WHATSAPP_FORMATTED = (
     f"whatsapp:{ROBERTO_PHONE}" if ROBERTO_PHONE else ""
 )
 CONSERVATIVE_MODE = os.environ.get("CONSERVATIVE_MODE", "true").lower() == "true"
+ENABLE_POLLING = os.environ.get("ENABLE_POLLING", "false").lower() == "true"
 AGENT_VERSION = os.environ.get("AGENT_VERSION", "v1.0.0-conservative")
 
 # ─── Notion API ───────────────────────────────────────────────────────────
@@ -452,24 +453,28 @@ async def lifespan(app: FastAPI):
     log.info(f"  Notion DB:         {NOTION_DB_ID}")
     log.info(f"  Twilio from:       {TWILIO_FROM}")
     log.info(f"  Roberto:           {ROBERTO_PHONE}")
-    # Schedule polling
-    scheduler.add_job(
-        run_polling_da_fare,
-        trigger=CronTrigger(minute=15, timezone="Europe/Rome"),
-        id="poll_da_fare",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        run_polling_ttl,
-        trigger=CronTrigger(hour=4, minute=30, timezone="Europe/Rome"),
-        id="poll_ttl",
-        replace_existing=True,
-    )
-    scheduler.start()
-    log.info("Scheduler started")
+    # Schedule polling — only if explicitly enabled (default: OFF in Phase 1)
+    if ENABLE_POLLING:
+        scheduler.add_job(
+            run_polling_da_fare,
+            trigger=CronTrigger(minute=15, timezone="Europe/Rome"),
+            id="poll_da_fare",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            run_polling_ttl,
+            trigger=CronTrigger(hour=4, minute=30, timezone="Europe/Rome"),
+            id="poll_ttl",
+            replace_existing=True,
+        )
+        scheduler.start()
+        log.info("Scheduler started (polling ENABLED)")
+    else:
+        log.info("Polling DISABLED (ENABLE_POLLING != true). Endpoints attivi, cron OFF.")
     yield
     log.info("Shutting down scheduler")
-    scheduler.shutdown(wait=False)
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
 
 
 app = FastAPI(
