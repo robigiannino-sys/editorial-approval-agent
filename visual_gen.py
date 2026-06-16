@@ -41,7 +41,25 @@ WP_UPLOAD_SECRET = os.environ.get("WP_UPLOAD_SECRET", "")
 WP_BASE_MU = os.environ.get("WP_BASE_MU", "https://merinouniversity.com")
 WP_BASE_WOM = os.environ.get("WP_BASE_WOM", "https://worldofmerino.com")
 
-DEFAULT_MODEL = "imagen-4.0-generate-001"
+DEFAULT_MODEL = "gemini-3.1-flash-image"
+
+
+def _extract_image_bytes(result) -> bytes:
+    """Extract the first inline image payload from a generate_content response.
+
+    Gemini image models return bytes as inline_data parts (not generated_images).
+    Robust across SDK versions: tries result.parts, then candidates[].content.parts.
+    """
+    parts = getattr(result, "parts", None)
+    if not parts:
+        candidates = getattr(result, "candidates", None) or []
+        if candidates and getattr(candidates[0], "content", None):
+            parts = candidates[0].content.parts or []
+    for part in (parts or []):
+        inline = getattr(part, "inline_data", None)
+        if inline and getattr(inline, "data", None):
+            return inline.data
+    return None
 
 
 def _wp_base_for(destination: str) -> str:
@@ -78,27 +96,26 @@ async def generate_image_bytes(
     client = genai.Client(api_key=GEMINI_API_KEY)
 
     log.info(
-        f"Imagen request: model={model} ar={aspect_ratio} "
+        f"Gemini image request: model={model} ar={aspect_ratio} "
         f"prompt={prompt[:100]!r}..."
     )
 
-    result = client.models.generate_images(
+    result = client.models.generate_content(
         model=model,
-        prompt=prompt,
-        config=types.GenerateImagesConfig(
-            number_of_images=1,
-            aspect_ratio=aspect_ratio,
-            safety_filter_level="BLOCK_MEDIUM_AND_ABOVE",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_modalities=["IMAGE"],
+            image_config=types.ImageConfig(aspect_ratio=aspect_ratio),
         ),
     )
 
-    if not result.generated_images:
+    img_bytes = _extract_image_bytes(result)
+    if not img_bytes:
         raise RuntimeError(
-            "Imagen returned no images (likely safety filter triggered)"
+            "Gemini returned no image (likely safety filter triggered)"
         )
 
-    img_bytes = result.generated_images[0].image.image_bytes
-    log.info(f"Imagen OK: {len(img_bytes) / 1024:.0f} KB")
+    log.info(f"Gemini image OK: {len(img_bytes) / 1024:.0f} KB")
     return img_bytes
 
 
