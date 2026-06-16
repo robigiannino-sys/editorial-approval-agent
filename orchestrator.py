@@ -342,7 +342,7 @@ class ApproveResponse(BaseModel):
 async def approve_brief(notion_id: str) -> ApproveResponse:
     """
     1) Legge il brief Notion (titolo, body, tema)
-    2) Genera visual MU via Imagen, upload a WP
+    2) Genera visual MU via gemini-3.1-flash-image, upload a WP
     3) Crea draft pagina IT via /albeni/v1/create-osservatorio-page
     4) Aggiorna Notion: Stato=In Pubblicazione + marker [DRAFT-PENDING]
     """

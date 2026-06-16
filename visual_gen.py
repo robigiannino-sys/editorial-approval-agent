@@ -1,6 +1,6 @@
 """
-Visual Generator (cloud) — Imagen 4 → WP Media Library
-=======================================================
+Visual Generator (cloud) — gemini-3.1-flash-image → WP Media Library
+====================================================================
 
 Modulo helper per il flusso editoriale mobile-first.
 Sostituisce la pipeline locale `generate_visuals.py` con una versione
@@ -18,7 +18,7 @@ Uso (chiamato dal backend `orchestrator.py`):
     # media è un dict: {"id": 1234, "source_url": "https://...wp-content/.../visual-...png"}
 
 Env vars richieste:
-    GEMINI_API_KEY        — Google Gemini / Imagen API key
+    GEMINI_API_KEY        — Google Gemini image API key
     WP_UPLOAD_SECRET      — X-Upload-Key per albeni/v1/upload-visual
     WP_BASE_MU            — default https://merinouniversity.com
     WP_BASE_WOM           — default https://worldofmerino.com
@@ -76,7 +76,7 @@ async def generate_image_bytes(
     model: str = DEFAULT_MODEL,
 ) -> bytes:
     """
-    Chiama Imagen 4 via Google Gemini SDK e ritorna i bytes PNG.
+    Chiama gemini-3.1-flash-image via Google Gemini SDK e ritorna i bytes PNG.
     SDK sincrono usato in run_in_executor sarebbe più pulito, ma
     qui il SDK è veloce e la chiamata è una sola — accettiamo il
     blocco temporaneo del loop async (~3-8 secondi).
@@ -167,7 +167,7 @@ async def generate_and_upload_visual(
     caption: Optional[str] = None,
 ) -> dict:
     """
-    Pipeline completa one-shot: genera con Imagen + carica su WP.
+    Pipeline completa one-shot: genera con gemini-3.1-flash-image + carica su WP.
     Ritorna lo stesso dict di upload_to_wp + il prompt usato.
     """
     img_bytes = await generate_image_bytes(prompt=prompt, aspect_ratio=aspect_ratio)
@@ -245,7 +245,7 @@ def compose_prompt(
     key_concepts: str = "",
     extra: str = "",
 ) -> str:
-    """Compone un prompt per Imagen 4 a partire da un soggetto e destinazione.
+    """Compone un prompt per gemini-3.1-flash-image a partire da un soggetto e destinazione.
     key_concepts: stringa con 3-5 concetti chiave estratti dal body del brief
                   (date, numeri, soggetti specifici, location, ecc.)
     """

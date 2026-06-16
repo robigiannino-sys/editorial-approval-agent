@@ -14,7 +14,7 @@ Servizio FastAPI che gira su Railway 24/7. Sostituisce il bottleneck umano del C
         │  Editorial Approval Agent (Railway, 24/7)       │
         │  ─────────────────────────────────────────────  │
         │  GET  /today          (pagina HTML mobile)      │
-        │  POST /approve-brief  → Imagen 4 + WP draft     │
+        │  POST /approve-brief  → Gemini image + WP draft │
         │  GET  /preview/<id>   (pagina HTML mobile)      │
         │  POST /promote/<id>   → flip draft → publish    │
         │  POST /delete/<id>    → cancella draft          │
@@ -22,7 +22,7 @@ Servizio FastAPI che gira su Railway 24/7. Sostituisce il bottleneck umano del C
         └────────┬────────────────────────────────────────┘
                  │
                  ├─→ Notion API (legge brief, scrive Stato + Note)
-                 ├─→ Imagen 4 (Gemini API: genera visual)
+                 ├─→ gemini-3.1-flash-image (Gemini API: genera visual)
                  └─→ WP albeni/v1/* (upload media + create/promote/delete pagine)
                                 ↓
                        merinouniversity.com  ← live
@@ -33,7 +33,7 @@ Servizio FastAPI che gira su Railway 24/7. Sostituisce il bottleneck umano del C
 **Tap 1**: apri `https://<railway-url>/today` sul phone.
 - Vedi il brief del giorno (titolo, dominio, tema, shelf life, body)
 - Tappi "Approva e crea draft"
-- Aspetti ~10 secondi (Imagen + upload + WP create)
+- Aspetti ~10 secondi (generazione immagine + upload + WP create)
 
 **Tap 2**: vieni rediretto a `/preview/<notion-id>`.
 - Vedi il visual generato e il link alla preview reale della pagina IT su MU
@@ -44,7 +44,7 @@ Nessun Terminal, nessun comando, nessun Mac.
 
 ## Stato Phase 1 (MVP)
 
-✅ Visual generation cloud via Imagen 4
+✅ Visual generation cloud via gemini-3.1-flash-image
 ✅ Frontend mobile-first responsive
 ✅ Backend orchestration (today/approve/promote/delete)
 ✅ Notion come state store (marker `[DRAFT-PENDING]`)
@@ -63,7 +63,7 @@ Nessun Terminal, nessun comando, nessun Mac.
 ```
 editorial-approval-agent/
 ├── agent.py            # FastAPI app + scheduler + Notion/WP/Twilio helpers (~620 righe)
-├── visual_gen.py       # Imagen 4 → WP Media Library upload (~190 righe)
+├── visual_gen.py       # gemini-3.1-flash-image → WP Media Library upload (~190 righe)
 ├── orchestrator.py     # Endpoint /today /approve-brief /promote /delete (~290 righe)
 ├── frontend.py         # Pagine HTML mobile /today e /preview (~330 righe)
 ├── requirements.txt    # 10 dependencies Python
@@ -118,7 +118,7 @@ Dal Railway dashboard → service → **Variables** → aggiungi tutte queste:
 | `WP_UPLOAD_SECRET` | (dal `.env`) | Stesso secret WoM/MU |
 | `WP_BASE_MU` | `https://merinouniversity.com` | |
 | `WP_BASE_WOM` | `https://worldofmerino.com` | |
-| `GEMINI_API_KEY` | (dal `.env`) | Per Imagen 4 |
+| `GEMINI_API_KEY` | (dal `.env`) | Per gemini-3.1-flash-image |
 | `TWILIO_ACCOUNT_SID` | `ACbd9ebba...` | |
 | `TWILIO_AUTH_TOKEN` | (dal `.env`) | |
 | `TWILIO_WHATSAPP_FROM` | `whatsapp:+14155238886` | |
@@ -183,7 +183,7 @@ Se entrambi rispondono OK, apri il phone su `/today` e fai il primo flow reale.
 | Sintomo | Diagnosi | Fix |
 |---|---|---|
 | `/today/data` ritorna `empty: true` | Nessuna entry Notion in stato "Da Fare" | Lascia girare lo scanner mattutino |
-| `/approve-brief/<id>` 500 "Visual generation failed" | Imagen API down o quota esaurita | Vedi log Railway |
+| `/approve-brief/<id>` 500 "Visual generation failed" | Gemini image API down o quota esaurita | Vedi log Railway |
 | `/approve-brief/<id>` 500 "WP create-draft failed" | Endpoint MU non risponde o secret errato | Lancia `pipeline/smoke-test-endpoints.sh mu` da Mac |
 | Pagina draft creata ma `/preview` errore | Marker `[DRAFT-PENDING]` non scritto in Notion | Vedi log dell'endpoint approve |
 | Bottone "Pubblica" 400 "Marker non trovato" | Note Notion modificato manualmente | Riavvia il flow da `/today` |
